@@ -284,11 +284,12 @@ const HOTELS = [
 const hotelLabel = c => { const h = HOTELS.find(x=>x.code===c); return h ? `${h.code} — ${h.name}` : c; };
 
 const DEFAULT_REST = {
-  BREPC:["Coquette"],
-  DROPC:[],
-  DRRPC:["Mercure","Portofino","Seaside Grill","Tres Colores","Japonés"],
-  SERPC:["Oceana","Buffet Riviera"],
-  DRFPC:[], SEAUA:[], DRJRC:[]
+  BREPC:["Coquette","Culinaria","Kibbeh","Silk City – A la carta","Silk City – Teppanyaki","Sofrito","Spumante","The Strip Grill"],
+  DROPC:["Bluewater Grill","Capers","Cin Cin","Mercure","On a Roll","Spice – A la carta","Spice – Teppanyaki","Tamarindo"],
+  DRRPC:["Fusion – A la carta","Fusion – Teppanyaki","Mercure","On a Roll","Portofino","Seaside Grill","Tres Colores"],
+  SERPC:["Bluewater Grill","Bordeaux","El Patio","Himitsu – A la carta","Himitsu – Teppanyaki","Oceana"],
+  DRFPC:["Bordeaux","El Patio","Himitsu – A la carta","Himitsu – Teppanyaki","Portofino","Seaside Grill"],
+  SEAUA:[], DRJRC:[]
 };
 
 const PILLARS = [
