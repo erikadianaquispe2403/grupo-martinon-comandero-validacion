@@ -242,6 +242,8 @@
   <div id="res-container"></div>
   <button class="secondary" id="btn-res-pdf">📄 Informe consolidado PDF</button>
   <button class="secondary" id="btn-res-word">📝 Informe consolidado Word (editable)</button>
+  <button class="secondary" id="btn-res-platform">⬆️ Generar evaluación para la plataforma</button>
+  <p class="hint">Baja un archivo con una evaluación de Comandero Digital por propiedad (según el período de arriba). En la plataforma corporativa, pestaña 7, usa “➕ Agregar evaluaciones desde archivo”.</p>
 </section>
 
 <!-- ======================= HISTORIAL ======================= -->
@@ -1140,6 +1142,80 @@ async function exportConsolidadoDocx(btn){
 }
 
 // ============================ NAVEGACIÓN / EVENTOS ============================
+
+// ============================ PUENTE A LA PLATAFORMA CORPORATIVA ============================
+const PLAT_PILLAR = ["Pilar 1 – Ejecución Operativa de la Implementación","Pilar 2 – Funcionalidad del Sistema","Pilar 3 – Infraestructura y Equipamiento","Pilar 4 – Adopción Operativa"];
+const PLAT_HOTEL = {BREPC:"Breathless Punta Cana",DROPC:"Dreams Onyx",DRRPC:"Dreams Royal Beach",SERPC:"Secrets Royal Beach",DRFPC:"Dreams Flora",SEAUA:"Secrets Baby Beach",DRJRC:"Dreams Jade"};
+const platState = v => { const r = Math.round(v); return r >= 90 ? "cumple" : r >= 71 ? "parcial" : "nocumple"; };
+function platRecord(h, hr){
+  const names = [...new Set(hr.map(r => r.restaurante))].sort((a,b)=>a.localeCompare(b,"es"));
+  const checklist = [], opps = [], acts = [], recs = [];
+  let tot = 0, cnt = 0, nPar = 0, nNo = 0;
+  PILLARS.forEach((p, pi) => p.items.forEach((q, ii) => {
+    const perRest = [], weak = [], obs = [];
+    names.forEach(n => {
+      const vals = [];
+      hr.filter(r => r.restaurante === n).forEach(r => {
+        const a = (r.respuestas || []).find(x => x.seccion === p.key && x.idx === ii);
+        if (!a || !a.valor || a.valor === "na") return;
+        vals.push(OPTIONS.find(o => o.key === a.valor).val);
+        if ((a.valor === "parcial" || a.valor === "nocumple") && a.comentario) obs.push(a.comentario);
+      });
+      const m = mean(vals);
+      if (m !== null){ perRest.push(m); if (platState(m) !== "cumple") weak.push(`${n} ${Math.round(m)}%`); }
+    });
+    const hv = mean(perRest);
+    let result = "na", o = "";
+    if (hv !== null){
+      result = platState(hv);
+      o = `Restaurantes con dato: ${perRest.length}; promedio ${Math.round(hv)}%.` + (weak.length ? " Por debajo del estándar: " + weak.join(", ") + "." : "") + (obs.length ? " Obs: " + [...new Set(obs)].slice(0,2).join(" | ") : "");
+      if (result === "cumple") tot += 100; else if (result === "parcial"){ tot += 50; nPar++; } else nNo++;
+      cnt++;
+    }
+    const block = PLAT_PILLAR[pi], key = pi + "_" + ii;
+    checklist.push({block, item:q, result, obs:o, evidenceName:"", editable:true, evidenceNames:[]});
+    if (result === "parcial" || result === "nocumple"){
+      const isNo = result === "nocumple", id = "AUTO-" + key + "-" + Date.now() + "-" + ii;
+      const text = (isNo ? "Atender incumplimiento: " : "Fortalecer cumplimiento parcial: ") + q;
+      opps.push({id, text, type:"Operativa", priority:isNo ? "Alta" : "Media", owner:"", criterion:q, pillar:block, obs:o, auto:true, autoCriterionKey:key});
+      acts.push({oppId:id, pillar:block, criterion:q, finding:text, text:isNo ? "Definir e implementar acción correctiva para lograr el cumplimiento del criterio." : "Completar los ajustes requeridos para alcanzar el cumplimiento total del criterio.", owner:"", date:"", status:"Pendiente", evidenceName:"", auto:true, autoCriterionKey:key, assignees:[{date:"", plan:"", owner:"", updates:[]}]});
+      recs.push((isNo ? "• Priorizar acción correctiva para: " : "• Completar ajustes para: ") + q);
+    }
+  }));
+  const score = cnt ? Math.round(tot / cnt) : 0;
+  const status = score >= 90 ? "Implementación Consolidada" : score >= 71 ? "Requiere Seguimiento" : "Requiere Intervención Prioritaria";
+  const dates = hr.map(r => r.fecha).filter(Boolean).sort();
+  const freq = {}; hr.forEach(r => { if (r.evaluador) freq[r.evaluador] = (freq[r.evaluador] || 0) + 1; });
+  const evaluator = Object.keys(freq).sort((a,b) => freq[b] - freq[a])[0] || "Erika Quispe";
+  const finds = names.map(n => {
+    const t = [...new Set(hr.filter(r => r.restaurante === n).map(r => (r.hallazgos || "").trim()).filter(Boolean))].join(" / ");
+    return t ? `• ${n}: ${t}` : "";
+  }).filter(Boolean).join("\n");
+  const plans = names.map(n => {
+    const t = [...new Set(hr.filter(r => r.restaurante === n).map(r => (r.plan_accion || "").trim()).filter(Boolean))].join(" / ");
+    return t ? `• ${n}: ${t}` : "";
+  }).filter(Boolean).join("\n");
+  return {code:"", savedAt:new Date().toISOString(), project:"Comandero Digital", hotel:PLAT_HOTEL[h.code] || h.name, property:{}, visitDate:dates[dates.length-1] || "", evaluator, hotelDirector:"", corporateDirector:"Glenys Silverio", manager:"", area:"", checkinArea:"", operationalUnits:names, shift:"", score, status,
+    checklist, opportunities:opps, actions:acts,
+    generalComments:`Evaluación generada a partir de ${hr.length} ficha(s) de ${names.length} restaurante(s) (${names.join(", ")}) entre ${fmtDay(dates[0])} y ${fmtDay(dates[dates.length-1])}. Cada restaurante promedia sus fichas y la propiedad promedia sus restaurantes. Los criterios sin dato quedan N/A.` + (finds ? "\nHallazgos registrados:\n" + finds : ""),
+    conclusions:`La evaluación obtuvo ${score}% (${status}). Se registraron ${nNo} criterio(s) No cumple y ${nPar} criterio(s) Parcial.`,
+    recommendations:(plans ? "Plan de acción propuesto en campo:\n" + plans + "\n" : "") + recs.join("\n"), corporateSupport:"No", supportNeeded:"", nextVisitDate:"", nextVisitObjective:"",
+    source:"comandero-campo", interviewStats:{fichas:hr.length, restaurantes:names.length, desde:dates[0] || "", hasta:dates[dates.length-1] || ""}};
+}
+$("btn-res-platform").onclick = async () => {
+  const desde = $("res-desde").value, hasta = $("res-hasta").value;
+  const {rows: all} = await fetchAll(true);
+  const rows = all.filter(e => inRange(e, desde, hasta) && e.respuestas && e.respuestas.length);
+  const recs = [];
+  HOTELS.forEach(h => { const hr = rows.filter(r => r.hotel === h.code); if (hr.length) recs.push(platRecord(h, hr)); });
+  if (!recs.length){ alert("No hay fichas con respuestas en el período seleccionado."); return; }
+  const blob = new Blob([JSON.stringify({gm_platform_assessments_v1:true, assessments:recs}, null, 1)], {type:"application/json"});
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+  a.download = "Evaluaciones_Comandero_para_plataforma_" + today() + ".json";
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  alert("Archivo generado con " + recs.length + " propiedad(es).");
+};
+
 function switchView(v){
   document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("active", b.dataset.view === v));
   document.querySelectorAll(".view").forEach(s => s.classList.toggle("active", s.id === "view-" + v));
