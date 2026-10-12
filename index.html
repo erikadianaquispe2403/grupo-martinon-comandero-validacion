@@ -1146,7 +1146,7 @@ async function exportConsolidadoDocx(btn){
 // ============================ PUENTE A LA PLATAFORMA CORPORATIVA ============================
 const PLAT_PILLAR = ["Pilar 1 – Ejecución Operativa de la Implementación","Pilar 2 – Funcionalidad del Sistema","Pilar 3 – Infraestructura y Equipamiento","Pilar 4 – Adopción Operativa"];
 const PLAT_HOTEL = {BREPC:"Breathless Punta Cana",DROPC:"Dreams Onyx",DRRPC:"Dreams Royal Beach",SERPC:"Secrets Royal Beach",DRFPC:"Dreams Flora",SEAUA:"Secrets Baby Beach",DRJRC:"Dreams Jade"};
-const platState = v => { const r = Math.round(v); return r >= 90 ? "cumple" : r >= 71 ? "parcial" : "nocumple"; };
+const platState = v => { const r = Math.round(v); return r >= 90 ? "cumple" : r >= 50 ? "parcial" : "nocumple"; };
 function platRecord(h, hr){
   const names = [...new Set(hr.map(r => r.restaurante))].sort((a,b)=>a.localeCompare(b,"es"));
   const checklist = [], opps = [], acts = [], recs = [];
