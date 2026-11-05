@@ -129,6 +129,19 @@
 
 <!-- ======================= FICHA ======================= -->
 <section class="view active" id="view-ficha">
+  <div class="card" id="report-actions" style="display:none;border-color:var(--green);">
+    <div class="card-head" style="border-bottom-color:var(--green);"><h2 id="saved-title">✅ Ficha guardada</h2><button type="button" class="mini-btn" id="btn-close-saved">✕</button></div>
+    <div class="card-body">
+      <p id="report-label" style="font-size:.85rem;margin:0 0 4px;"></p>
+      <p id="saved-sync" style="font-size:.78rem;color:var(--grey);margin:0 0 8px;"></p>
+      <div class="export-row">
+        <button class="secondary" id="btn-word" style="margin-top:0;">📝 Word</button>
+        <button class="secondary" id="btn-pdf" style="margin-top:0;">📄 PDF</button>
+      </div>
+      <button class="secondary" id="btn-next">↩️ Otra ficha en el mismo hotel y restaurante</button>
+      <p class="hint">El formulario ya quedó en blanco para la siguiente ficha. Esta ficha se puede ver y editar en la pestaña Historial.</p>
+    </div>
+  </div>
   <div class="card">
     <div class="card-head"><h2>Datos generales</h2><span class="pill" id="edit-flag" style="display:none;">Editando ficha</span></div>
     <div class="card-body">
@@ -215,15 +228,6 @@
   <button class="secondary" id="btn-cancel-edit" style="display:none;">Cancelar edición</button>
   <div class="status-msg" id="status-msg"></div>
 
-  <div class="card" id="report-actions" style="display:none;margin-top:14px;">
-    <div class="card-head"><h2>Informe de la ficha guardada</h2></div>
-    <div class="card-body">
-      <p id="report-label" style="font-size:.85rem;color:var(--grey);margin:0 0 6px;"></p>
-      <button class="secondary" id="btn-pdf" style="margin-top:0;">📄 Descargar PDF</button>
-      <button class="secondary" id="btn-word">📝 Descargar Word (editable)</button>
-      <button class="secondary" id="btn-next">➕ Nueva ficha, mismo restaurante</button>
-    </div>
-  </div>
 </section>
 
 <!-- ======================= RESULTADOS ======================= -->
@@ -677,11 +681,20 @@ async function guardar(){
   saveLocal();
   showStatus("Guardando…", "local");
   const ok = await pushEntry(e);
-  showStatus(ok ? `Ficha guardada y sincronizada · ${hotelLabel(hotel)} · ${rest} · ${fmt(scores.general)}`
-                : "Guardada en este dispositivo. Se sincronizará al reintentar (pestaña Historial).", ok ? "ok" : "local");
   lastSaved = e;
-  $("report-label").textContent = `${hotelLabel(hotel)} · ${rest} · ${e.nombre_entrevistado || e.perfil_entrevistado || "Entrevistado"} · ${fmt(scores.general)}`;
+  resetForm();
+  $("saved-title").textContent = ok ? "✅ Ficha guardada" : "💾 Ficha guardada en este dispositivo";
+  $("report-label").innerHTML = `<b>${esc(hotelLabel(hotel))} · ${esc(rest)}</b><br>${esc(e.nombre_entrevistado || e.perfil_entrevistado || "Entrevistado")} · ${fmt(scores.general)} · ${band(scores.general).label}`;
+  $("saved-sync").textContent = ok ? "Sincronizada en la nube." : "Sin conexión con la nube: se sincronizará al reintentar desde la pestaña Historial.";
   $("report-actions").style.display = "block";
+  window.scrollTo({top:0, behavior:"smooth"});
+}
+// Deja la ficha en blanco (conserva evaluador y fecha)
+function resetForm(){
+  clearAnswers();
+  $("hotel").value = ""; fillRestSelect($("restaurante"), "");
+  $("nombre_entrevistado").value = ""; $("perfil").value = ""; $("perfil_otro").value = ""; $("perfil_otro_wrap").style.display = "none";
+  $("status-msg").className = "status-msg";
   setEditing(null);
 }
 function setEditing(id){
@@ -691,10 +704,9 @@ function setEditing(id){
   $("btn-guardar").textContent = id ? "Guardar cambios" : "Guardar ficha";
 }
 function nextFicha(){
-  clearAnswers();
-  $("nombre_entrevistado").value = ""; $("perfil").value = ""; $("perfil_otro").value = ""; $("perfil_otro_wrap").style.display = "none";
-  $("report-actions").style.display = "none"; $("status-msg").className = "status-msg";
-  setEditing(null);
+  resetForm();
+  if (lastSaved) { $("hotel").value = lastSaved.hotel; fillRestSelect($("restaurante"), lastSaved.hotel, lastSaved.restaurante); }
+  $("report-actions").style.display = "none";
   window.scrollTo({top:0, behavior:"smooth"});
 }
 function loadIntoForm(e){
@@ -1246,7 +1258,8 @@ $("ph-gal").onchange = ev => { addPhotoFiles([...ev.target.files]); ev.target.va
 $("lightbox").onclick = ev => { if (ev.target.id !== "lb-img") $("lightbox").classList.remove("open"); };
 // ficha
 $("btn-guardar").onclick = guardar;
-$("btn-cancel-edit").onclick = () => { setEditing(null); clearAnswers(); };
+$("btn-cancel-edit").onclick = () => resetForm();
+$("btn-close-saved").onclick = () => { $("report-actions").style.display = "none"; };
 $("btn-pdf").onclick = () => lastSaved && exportFichaPDF(lastSaved);
 $("btn-word").onclick = ev => lastSaved && exportFichasDocx([lastSaved], `Comandero_${lastSaved.hotel}_${slug(lastSaved.restaurante)}_${lastSaved.fecha}.docx`, ev.currentTarget);
 $("btn-next").onclick = nextFicha;
